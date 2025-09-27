@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using LibraryManagementSystem.Data;
 using LibraryManagementSystem.Models;
+using LibraryManagementSystem.Service;
 
 namespace LibraryManagementSystem.Controllers
 {
@@ -9,46 +10,43 @@ namespace LibraryManagementSystem.Controllers
     [Route("api/[controller]")]
     public class BooksController : ControllerBase
     {
-        private readonly LibraryContext _db;
-        public BooksController(LibraryContext db) => _db = db;
+        private readonly ILibraryService _libraryService;
+
+        public BooksController(ILibraryService libraryService)
+        {
+            _libraryService = libraryService;
+        }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Book>>> Get() =>
-            await _db.Books.OrderBy(b => b.Id).ToListAsync();
+        public async Task<IActionResult> GetAll() => Ok(await _libraryService.GetAllBooksAsync());
 
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<Book>> GetById(int id)
+        [HttpGet("{id}")]
+        public async Task<IActionResult> Get(int id)
         {
-            var book = await _db.Books.FindAsync(id);
+            var book = await _libraryService.GetBookByIdAsync(id);
             if (book == null) return NotFound();
-            return book;
+            return Ok(book);
         }
 
-        [HttpPost]
-        public async Task<ActionResult<Book>> Create(Book book)
-        {
-            _db.Books.Add(book);
-            await _db.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = book.Id }, book);
-        }
+        [HttpPost("Create")]
+        public async Task<IActionResult> Create(Book book) => Ok(await _libraryService.AddBookAsync(book));
 
-        [HttpPut("{id:int}")]
+
+        [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, Book book)
         {
             if (id != book.Id) return BadRequest();
-            _db.Entry(book).State = EntityState.Modified;
-            await _db.SaveChangesAsync();
-            return NoContent();
+            var updatedBook = await _libraryService.UpdateBookAsync(book);
+            if (updatedBook == null) return NotFound();
+            return Ok(updatedBook);
         }
 
-        [HttpDelete("{id:int}")]
+        [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var book = await _db.Books.FindAsync(id);
-            if (book == null) return NotFound();
-            _db.Books.Remove(book);
-            await _db.SaveChangesAsync();
-            return NoContent();
+            var deleted = await _libraryService.DeleteBookAsync(id);
+            if (!deleted) return NotFound();
+            return Ok();
         }
     }
 }
